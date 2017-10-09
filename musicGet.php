@@ -200,6 +200,10 @@ if ($_GET['ajax']) {
 
 <html>
 <head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+    <meta name="full-screen" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes" />
     <link href="https://cdn.bootcss.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdn.bootcss.com/jquery/3.2.1/jquery.min.js"></script>
     <title>随机音乐播放demo</title>
@@ -224,11 +228,9 @@ if ($_GET['ajax']) {
         </div>
         <br>
         <input class="btn btn-success" type="submit" id="sb" onclick="getAnother()" value="__切歌__">
-        <input class="btn btn-primary" type="submit" id="mobile"  onclick="mplay()" style="display: none" value="手机端点此播放">
-
-
-
         <input class="btn btn-info" type="submit" style="float: right" id="down" onclick="down()" value="下载当前播放的歌曲">
+        <br/>
+        <input class="btn btn-primary" type="submit" id="mobile"  onclick="mplay()" style="display: none" value="手机端若未自动播放请点此">
     </div>
     <audio id="audio" src=""></audio>
 </div>
@@ -314,8 +316,13 @@ if ($_GET['ajax']) {
     $(() =>
     {
         getAnother(randStr());
-    if (typeof window.orientation != 'undefined') {
-        $('#mobile').show(1000);
+    if (typeof window.orientation != 'undefined'){
+        setTimeout(()=> {
+            if(audio.paused){
+            $('#mobile').show(500);
+        }
+    }, 1200)
+
     }
 
     });
