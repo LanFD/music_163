@@ -220,7 +220,10 @@ if($_GET['ajax']){
         </div>
     </div>
     <div class="form-group center-block"  style="margin-top: 20vh">
-        <input class="form-control" type="text" id="text" value="" style="margin: 1vh auto 0" placeholder="写入关键字">
+        <div class="input-group">
+            <div class="input-group-addon">关键字：</div>
+            <input class="form-control" type="text" id="text" value="" placeholder="写入关键字">
+        </div>
         <br>
         <input class="btn btn-success"  type="submit" id="sb" onclick="getAnother()" value="__切歌__">
 
