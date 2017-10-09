@@ -208,22 +208,21 @@ if($_GET['ajax']){
 </head>
 <body>
 <div class="container-fluid" style="height: 100vh">
-    <div class="row">
-        <div class="col-xs-18">
+    <div class="row" style="margin-top: 10vh; background: #bdbdbd;padding: 2vh">
+        <div class="col-xs-12 col-sm-6 col-md-8">
             音乐资源来源于<a href="http://music.163.com/" target="_blank">网易云</a>
         </div>
-        <div class="col-xs-18">
-            此程序仅用于学习交流,若有任何侵犯合法权益行为请联系 qq:623975749 删除程序
+        <div class="col-xs-12 col-sm-6 col-md-8">
+            本程序仅用于学习交流,若有任何侵犯合法权益行为请联系 qq:623975749 删除程序
         </div>
-        <div class="col-xs-18">
-            此程序已开源于
+        <div class="col-xs-12 col-sm-6 col-md-8">
+            本程序已开源于 <a href="https://github.com/LanFD/music_163" target="_blank">https://github.com/LanFD/music_163</a>
         </div>
     </div>
-
     <div class="form-group center-block"  style="margin-top: 20vh">
         <input class="form-control" type="text" id="text" value="" style="margin: 1vh auto 0" placeholder="写入关键字">
         <br>
-         <input class="btn btn-success"  type="submit" id="sb" onclick="getAnother()" value="__切歌__">
+        <input class="btn btn-success"  type="submit" id="sb" onclick="getAnother()" value="__切歌__">
 
         <input class="btn btn-info" type="submit" style="float: right" id="down" onclick="down()" value="下载当前播放的歌曲">
     </div>
@@ -235,7 +234,7 @@ if($_GET['ajax']){
     let audio = $("#audio")[0];
     function log(x)
     {
-         console.log(x);
+        console.log(x);
     }
     function down()
     {
@@ -255,7 +254,7 @@ if($_GET['ajax']){
             n++;
             setTimeout(()=> {
                 autoPlay(n);
-            }, 500);
+        }, 500);
         }
     }
 
@@ -270,14 +269,14 @@ if($_GET['ajax']){
             $.ajax({
                 url:'?ajax=1&word='+w,
                 success:(x)=>{
-                    audio.src = x;
-                    autoPlay();
-                   
-                }
-            }
+                audio.src = x;
+            autoPlay();
 
-                
-            );
+        }
+        }
+
+
+        );
         }else {
             alert('请写入关键字');
         }
