@@ -224,6 +224,9 @@ if ($_GET['ajax']) {
         </div>
         <br>
         <input class="btn btn-success" type="submit" id="sb" onclick="getAnother()" value="__切歌__">
+        <input class="btn btn-primary" type="submit" id="mobile"  onclick="mplay()" style="display: none" value="手机端点此播放">
+
+
 
         <input class="btn btn-info" type="submit" style="float: right" id="down" onclick="down()" value="下载当前播放的歌曲">
     </div>
@@ -258,6 +261,14 @@ if ($_GET['ajax']) {
             {
                 autoPlay(n);
         }, 500);
+        }
+    }
+
+    function mplay()
+    {
+        autoPlay();
+        if (audio.readyState) {
+            $('#mobile').hide(2000);
         }
     }
 
@@ -303,6 +314,10 @@ if ($_GET['ajax']) {
     $(() =>
     {
         getAnother(randStr());
+    if (typeof window.orientation != 'undefined') {
+        $('#mobile').show(1000);
+    }
+
     });
 
     audio.loop    = false;
@@ -310,4 +325,6 @@ if ($_GET['ajax']) {
     {
         getAnother();
     };
+
+
 </script> 
