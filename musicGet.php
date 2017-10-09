@@ -333,5 +333,16 @@ if ($_GET['ajax']) {
         getAnother();
     };
 
+    document.body.addEventListener('keypress', (e) =>
+    {
+        let keyCode = e.keyCode || e.which;
+    switch (keyCode) {
+        case 13:
+            getAnother();
+            break;
+    }
+    return false;
+    });
+
 
 </script> 
