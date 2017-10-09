@@ -284,9 +284,25 @@ if ($_GET['ajax']) {
         }
     }
 
+
+    function randStr()
+    {
+        let arr = [
+            '战舰世界',
+            '高达',
+            'Touhou',
+            '初音',
+            '钢琴',
+            '小提琴'
+        ];
+        let l = arr.length;
+        let r = Math.ceil(Math.random()*l);
+        return arr[r-1];
+    }
+
     $(() =>
     {
-        getAnother('战舰世界');
+        getAnother(randStr());
     });
 
     audio.loop    = false;
