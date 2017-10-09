@@ -165,19 +165,17 @@ $list  = $m->music_search($word, 1);
 $count = count($list['result']['songs']);
 $lanfd = '';
 if ($count > 0) {
-    $rand  = (int)rand(0, $count - 1);
-    $song  = $list['result']['songs'][$rand];
-    $info  = $m->music_get($song['id']);
-    $url   = $info['data'][0]['url'];
+    $rand = (int)rand(0, $count - 1);
+    $song = $list['result']['songs'][$rand];
+    $info = $m->music_get($song['id']);
+    $url  = $info['data'][0]['url'];
 } else {
     $lanfd .= '换一个关键字吧，没搜到';
 }
-if($_GET['ajax']){
+if ($_GET['ajax']) {
     echo $url;
     exit;
 }
-
-
 
 
 //
@@ -219,13 +217,13 @@ if($_GET['ajax']){
             本程序已开源于 <a href="https://github.com/LanFD/music_163" target="_blank">https://github.com/LanFD/music_163</a>
         </div>
     </div>
-    <div class="form-group center-block"  style="margin-top: 20vh">
+    <div class="form-group center-block" style="margin-top: 20vh">
         <div class="input-group">
             <div class="input-group-addon">关键字：</div>
             <input class="form-control" type="text" id="text" value="" placeholder="写入关键字">
         </div>
         <br>
-        <input class="btn btn-success"  type="submit" id="sb" onclick="getAnother()" value="__切歌__">
+        <input class="btn btn-success" type="submit" id="sb" onclick="getAnother()" value="__切歌__">
 
         <input class="btn btn-info" type="submit" style="float: right" id="down" onclick="down()" value="下载当前播放的歌曲">
     </div>
@@ -245,17 +243,19 @@ if($_GET['ajax']){
         window.open(src);
     }
 
-    function autoPlay(n =0 )
+    function autoPlay(n = 0)
     {
-        if(n>10){
-            alert('获取资源失败');
+        if (n > 10) {
+            //获取资源失败
+            getAnother();
             return;
         }
-        if(audio.readyState){
+        if (audio.readyState) {
             audio.play();
-        }else {
+        } else {
             n++;
-            setTimeout(()=> {
+            setTimeout(() =>
+            {
                 autoPlay(n);
         }, 500);
         }
@@ -264,33 +264,34 @@ if($_GET['ajax']){
     function getAnother(ini)
     {
         let w = $('#text').val();
-        if(ini){
+        if (ini) {
             w = ini;
             $('#text').val(w);
         }
-        if(w){
+        if (w) {
             $.ajax({
-                url:'?ajax=1&word='+w,
-                success:(x)=>{
+                url:     '?ajax=1&word=' + w,
+                success: (x) =>
+            {
                 audio.src = x;
-            autoPlay();
+            autoPlay(0);
 
         }
         }
-
-
         );
-        }else {
+        } else {
             alert('请写入关键字');
         }
     }
 
-    $(()=>{
+    $(() =>
+    {
         getAnother('战舰世界');
     });
 
-    audio.loop = false;
-    audio.onended= () => {
+    audio.loop    = false;
+    audio.onended = () =>
+    {
         getAnother();
     };
 </script> 
