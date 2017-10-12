@@ -60,13 +60,13 @@ class Music_163
         return $result;
     }
 
-    function music_search($word, $type)
+    function music_search($word, $type, $limit = 100, $offset = 0)
     {
         return json_decode(
             $this->postAndGetResult('api/search/pc', [
                 's'      => $word,
-                'offset' => '0',
-                'limit'  => '100',
+                'offset' => $offset,
+                'limit'  => $limit,
                 'type'   => $type,
             ]),
             true);
@@ -158,52 +158,43 @@ class Music_163
 
 }
 
-$word = $_GET['word'] ? $_GET['word'] : '战舰世界';
-
-$m     = new Music_163();
-$list  = $m->music_search($word, 1);
-$count = count($list['result']['songs']);
-$lanfd = '';
-if ($count > 0) {
-    $rand = (int)rand(0, $count - 1);
-    $song = $list['result']['songs'][$rand];
-    $info = $m->music_get($song['id']);
-    $url  = $info['data'][0]['url'];
-} else {
-    $lanfd .= '换一个关键字吧，没搜到';
-}
-if ($_GET['ajax']) {
-    echo $url;
+function outPut($r = 0, $data = [])
+{
+    echo json_encode(['r' => $r, 'data' => $data]);
     exit;
 }
 
+$word = $_GET['word'] ? $_GET['word'] : 'acg';
 
-//
-//$a = music_search("战舰世界", "1");
-//$a = json_decode($a, true);
-////print_r($a);exit;
-//print_r($a);
-//$no_1 = $a['result']['songs'][0]['id'];
-//tt($no_1);
+$m     = new Music_163();
+$count = $m->music_search($word, 1, 1)['result']['songCount'];
+if (!$count) {
+    outPut(0, '换一个关键字吧，没搜到');
+}
+$p = 0;
+if ($count > 100) {
+    $p     = ceil($count / 100) - 1;
+    $p     = ceil(rand(0, $p));
+    $count = 100;
+}
+$list = $m->music_search($word, 1, $count, $p);
+$rand = (int)rand(0, $count - 1);
+$song = $list['result']['songs'][$rand];
+$info = $m->music_get($song['id']);
+$url  = $info['data'][0]['url'];
+if ($_GET['ajax']) {
+    outPut(1, $url);
+}
 
-//$a = openssl_get_cipher_methods();
-//print_r($a);
-//$r = get_music_info($no_1);
-//print_r($r);
-#get_music_info("28949444");
-#echo get_artist_album("166009", "5");
-#echo get_album_info("3021064");
-#echo get_playlist_info("22320356");
-#echo get_music_lyric("29567020");
-#echo get_mv_info();
 ?>
 
 <html>
 <head>
     <meta charset="utf-8"/>
-    <meta name="viewport" content="width=device-width,initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+    <meta name="viewport"
+          content="width=device-width,initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
     <meta name="full-screen" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes"/>
     <link href="https://cdn.bootcss.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdn.bootcss.com/jquery/3.2.1/jquery.min.js"></script>
     <title>随机音乐播放demo</title>
@@ -230,7 +221,8 @@ if ($_GET['ajax']) {
         <input class="btn btn-success" type="submit" id="sb" onclick="getAnother()" value="__切歌__">
         <input class="btn btn-info" type="submit" style="float: right" id="down" onclick="down()" value="下载当前播放的歌曲">
         <br/>
-        <input class="btn btn-primary" type="submit" id="mobile"  onclick="mplay()" style="display: none" value="手机端若未自动播放请点此">
+        <input class="btn btn-primary" type="submit" id="mobile" onclick="mplay()" style="display: none"
+               value="手机端若未自动播放请点此">
     </div>
     <audio id="audio" src=""></audio>
 </div>
@@ -283,11 +275,17 @@ if ($_GET['ajax']) {
         }
         if (w) {
             $.ajax({
-                url:     '?ajax=1&word=' + w,
-                success: (x) =>
-            {
-                audio.src = x;
-            autoPlay(0);
+                    url:      '?ajax=1&word=' + w,
+                    dataType: 'json',
+                    success:  (x) =>
+                {
+                    if (x.r) {
+                audio.src = x.data;
+                autoPlay(0);
+            } else {
+                alert(x.data)
+            }
+
 
         }
         }
@@ -305,20 +303,22 @@ if ($_GET['ajax']) {
             '高达',
             'Touhou',
             '初音',
+            'acg',
             '钢琴',
             '小提琴'
         ];
-        let l = arr.length;
-        let r = Math.ceil(Math.random()*l);
-        return arr[r-1];
+        let l   = arr.length;
+        let r   = Math.ceil(Math.random() * l);
+        return arr[r - 1];
     }
 
     $(() =>
     {
         getAnother(randStr());
-    if (typeof window.orientation != 'undefined'){
-        setTimeout(()=> {
-            if(audio.paused){
+    if (typeof window.orientation != 'undefined') {
+        setTimeout(() =>
+        {
+            if (audio.paused) {
             $('#mobile').show(500);
         }
     }, 1200)
