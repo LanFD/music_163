@@ -158,9 +158,9 @@ class Music_163
 
 }
 
-function outPut($r = 0, $data = [])
+function outPut($r = 0, $data = [], $extra = '')
 {
-    echo json_encode(['r' => $r, 'data' => $data]);
+    echo json_encode(['r' => $r, 'data' => $data, 'ex' => $extra]);
     exit;
 }
 
@@ -171,19 +171,30 @@ $count = $m->music_search($word, 1, 1)['result']['songCount'];
 if (!$count) {
     outPut(0, '换一个关键字吧，没搜到');
 }
-$p = 0;
-if ($count > 100) {
-    $p     = ceil($count / 100) - 1;
+$page        = 20;
+$ex          = [];
+$ex['count'] = $count;
+$p           = 0;
+if ($count > $page) {
+    $p     = ceil($count / $page) - 1;
     $p     = ceil(rand(0, $p));
-    $count = 100;
+    $count = $page;
 }
-$list = $m->music_search($word, 1, $count, $p);
-$rand = (int)rand(0, $count - 1);
-$song = $list['result']['songs'][$rand];
-$info = $m->music_get($song['id']);
-$url  = $info['data'][0]['url'];
+$ex['p'] = $p;
+$list    = $m->music_search($word, 1, $count, $p);
+$url     = function () use ($list, $count, $m, &$url) {
+    $rand = (int)rand(0, $count - 1);
+    $song = $list['result']['songs'][$rand];
+    $info = $m->music_get($song['id']);
+    $res  = $info['data'][0]['url'];
+    if ($res) {
+        return $res;
+    } else {
+        return $url();
+    }
+};
 if ($_GET['ajax']) {
-    outPut(1, $url);
+    outPut(1, $url(), $ex);
 }
 
 ?>
@@ -201,7 +212,7 @@ if ($_GET['ajax']) {
 </head>
 <body>
 <div class="container-fluid" style="height: 100vh">
-    <div class="row" style="margin-top: 10vh; background: #bdbdbd;padding: 2vh">
+    <div class="row" style="margin-top: 1vh; background: #bdbdbd;padding: 1vh">
         <div class="col-xs-12 col-sm-6 col-md-8">
             音乐资源来源于<a href="http://music.163.com/" target="_blank">网易云</a>
         </div>
@@ -212,17 +223,30 @@ if ($_GET['ajax']) {
             本程序已开源于 <a href="https://github.com/LanFD/music_163" target="_blank">https://github.com/LanFD/music_163</a>
         </div>
     </div>
-    <div class="form-group center-block" style="margin-top: 20vh">
+    <div class="form-group center-block" style="margin-top: 4vh">
         <div class="input-group">
             <div class="input-group-addon">关键字：</div>
             <input class="form-control" type="text" id="text" value="" placeholder="写入关键字">
         </div>
-        <br>
-        <input class="btn btn-success" type="submit" id="sb" onclick="getAnother()" value="__切歌__">
-        <input class="btn btn-info" type="submit" style="float: right" id="down" onclick="down()" value="下载当前播放的歌曲">
-        <br/>
+        <div style="margin-top: 1vh">
+            <button id="playButton" type="button" class="btn btn-default">
+                <span class="glyphicon glyphicon-play"></span>
+            </button>
+            <button onclick="getAnother()" type="button" class="btn btn-default">
+                <span class="glyphicon glyphicon-step-forward"></span>
+            </button>
+
+            <button style="float: right" onclick="down()" type="button" class="btn btn-default">
+                <span class=" glyphicon glyphicon-arrow-down"></span>
+            </button>
+
+        </div>
+
         <input class="btn btn-primary" type="submit" id="mobile" onclick="mplay()" style="display: none"
                value="手机端若未自动播放请点此">
+        <div style="margin-top: 4vh">
+            <canvas id="c" style="z-index: -1; width: 100%;background: transparent"></canvas>
+        </div>
     </div>
     <audio id="audio" src=""></audio>
 </div>
@@ -240,6 +264,20 @@ if ($_GET['ajax']) {
         window.open(src);
     }
 
+    function playOrPause(autoplay = 0)
+    {
+        if (autoplay) {
+            audio.pause();
+        }
+        if (audio.paused) {
+            audio.play();
+            $('#playButton').find('span').attr("class", "glyphicon glyphicon-play");
+        } else {
+            audio.pause();
+            $('#playButton').find('span').attr("class", "glyphicon glyphicon-pause");
+        }
+    }
+
     function autoPlay(n = 0)
     {
         if (n > 10) {
@@ -248,7 +286,7 @@ if ($_GET['ajax']) {
             return;
         }
         if (audio.readyState) {
-            audio.play();
+            playOrPause(1);
         } else {
             n++;
             setTimeout(() =>
@@ -324,7 +362,9 @@ if ($_GET['ajax']) {
     }, 1200)
 
     }
-
+    $('#playButton').click(() =>
+    {
+        playOrPause();
     });
 
     audio.loop    = false;
@@ -345,4 +385,7 @@ if ($_GET['ajax']) {
     });
 
 
-</script> 
+    });
+
+
+</script>
