@@ -8,7 +8,8 @@ class Music_163
     {
         $refer    = "http://music.163.com/";
         $header[] = "Cookie: " . "appver=1.5.0.75771;";
-        $ch       = curl_init();
+
+        $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_HTTPHEADER, $header);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -42,7 +43,7 @@ class Music_163
         $request .= "Content-type: application/x-www-form-urlencoded\n";
         $request .= "Content-length: " . strlen($data_string) . "\n";
         $request .= "Connection: close\n";
-        $request .= "Cookie: " . "appver=1.5.0.75771;\n";
+//        $request .= "Cookie: " . "appver=1.5.0.75771;\n";
         $request .= "\n";
         $request .= $data_string . "\n";
         $fp      = fsockopen($URL_Info["host"], $URL_Info["port"]);
@@ -60,15 +61,20 @@ class Music_163
         return $result;
     }
 
-    function music_search($word, $type, $limit = 100, $offset = 0)
+    function music_search($word = '战舰世界', $offset = 0, $limit = 30)
     {
+        $p = [
+            's'      => $word,
+            'type'   => 1,
+            'offset' => $offset,
+            'total'  => 'true',
+            'limit'  => $limit,
+        ];
+        $p = json_encode($p);
         return json_decode(
-            $this->postAndGetResult('api/search/pc', [
-                's'      => $word,
-                'offset' => $offset,
-                'limit'  => $limit,
-                'type'   => $type,
-            ]),
+            $this->postAndGetResult('weapi/cloudsearch/get/web',
+                $this->createParam($p)
+            ),
             true);
     }
 
@@ -76,7 +82,13 @@ class Music_163
     function music_get($id)
     {
 //    'http://music.163.com/weapi/song/enhance/player/url?csrf_token=';
-        $data = $this->createParam($id);
+//        {"ids":"[413812377]","br":128000,"csrf_token":""}
+        $p = [
+            'ids'      => '['.$id.']',
+            'br'   => 128000,
+        ];
+        $p = json_encode($p);
+        $data = $this->createParam($p);
         return json_decode($this->postAndGetResult('weapi/song/enhance/player/url', $data), true);
 
         /*
@@ -86,18 +98,18 @@ class Music_163
     }
 
 
-    function createParam($id = '', $br = 128000)
+    function createParam($text)
     {
 //    echo $text    = json_encode($text);
 //    $pubKey  = 010001;
 //    $modulus = '00e0b509f6259df8642dbc35662901477df22677ec152b5ff68ace615bb7b725152b3ab17a876aea8a5aa76d2e417629ec4ee341f56135fccf695280104e0312ecbda92557c93870114af6c9d05c4f7f0c3685b7a46bee255932575cce10b424d813cfe4875d3e82047b97ddef52741d546b8e289dc6935b3ece0462db0a22b8e7';
 
-        $text    = [
-            'ids'        => '[' . $id . ']',
-            'br'         => $br,
-            'csrf_token' => ''
-        ];
-        $text    = json_encode($text);
+//        $text    = [
+//            'ids'        => '[' . $id . ']',
+//            'br'         => $br,
+//            'csrf_token' => ''
+//        ];
+//        $text    = json_encode($text);
         $nonce   = '0CoJUm6Qyw8W8jud';
         $secKey  = 'FFFFFFFFFFFFFFFF';
         $encText = $this->AES_encrypt(
@@ -119,85 +131,82 @@ class Music_163
         return base64_encode($encryptor);
     }
 
-    function get_music_info($music_id)
+    function outPut($r = 0, $data = [], $extra = '')
     {
-        $url = "http://music.163.com/api/song/detail/?id=" . $music_id . "&ids=%5B" . $music_id . "%5D";
-        return $this->curl_get($url);
+        echo json_encode(['r' => $r, 'data' => $data, 'ex' => $extra]);
+        exit;
     }
-
-    function get_artist_album($artist_id, $limit)
-    {
-        $url = "http://music.163.com/api/artist/albums/" . $artist_id . "?limit=" . $limit;
-        return $this->curl_get($url);
-    }
-
-    function get_album_info($album_id)
-    {
-        $url = "http://music.163.com/api/album/" . $album_id;
-        return $this->curl_get($url);
-    }
-
-    function get_playlist_info($playlist_id)
-    {
-        $url = "http://music.163.com/api/playlist/detail?id=" . $playlist_id;
-        return $this->curl_get($url);
-    }
-
-    function get_music_lyric($music_id)
-    {
-        $url = "http://music.163.com/api/song/lyric?os=pc&id=" . $music_id . "&lv=-1&kv=-1&tv=-1";
-        return $this->curl_get($url);
-    }
-
-    function get_mv_info()
-    {
-        $url = "http://music.163.com/api/mv/detail?id=319104&type=mp4";
-        return $this->curl_get($url);
-    }
-
 
 }
-
-function outPut($r = 0, $data = [], $extra = '')
-{
-    echo json_encode(['r' => $r, 'data' => $data, 'ex' => $extra]);
-    exit;
-}
-
-$word = $_GET['word'] ? $_GET['word'] : 'acg';
-
-$m     = new Music_163();
-$count = $m->music_search($word, 1, 1)['result']['songCount'];
-if (!$count) {
-    outPut(0, '换一个关键字吧，没搜到');
-}
-$page        = 20;
-$ex          = [];
-$ex['count'] = $count;
-$p           = 0;
-if ($count > $page) {
-    $p     = ceil($count / $page) - 1;
-    $p     = ceil(rand(0, $p));
-    $count = $page;
-}
-$ex['p'] = $p;
-$list    = $m->music_search($word, 1, $count, $p);
-$url     = function () use ($list, $count, $m, &$url) {
-    $rand = (int)rand(0, $count - 1);
-    $song = $list['result']['songs'][$rand];
-    $info = $m->music_get($song['id']);
-    $res  = $info['data'][0]['url'];
-    if ($res) {
-        return $res;
-    } else {
-        return $url();
-    }
-};
+//$_GET['ajax']= 1;
 if ($_GET['ajax']) {
-    outPut(1, $url(), $ex);
+    $m     = new Music_163();
+    $info  = $m->music_search(
+        $word = $_GET['word'] ? $_GET['word'] : '战舰世界',
+        $offset = 0,
+        $limit = 30
+    );
+    $count = $info['result']['songCount'];
+    if ($count > 0) {
+        $play = rand(0, $count - 1);
+        $p    = 0;
+        if ($play > $offset) {
+            $p    = floor($play / $limit);
+            $play = $play - $limit * $p;
+        }
+        if ($p > 0) {
+            $info = $m->music_search(
+                $word,
+                $p,
+                $limit
+            );
+        }
+        $song = $info['result']['songs'][$play];
+        $url  = $m->music_get($song['id']);
+        $url  = $url['data'][0]['url'];
+
+        $ex = [
+            'name' => $song['name'],
+            'al'   => [
+                'name' => $song['al']['name'],
+                'pic'  => $song['al']['picUrl']
+            ]
+
+        ];
+        $m->outPut(1, $url, $ex);
+
+    }
+    $m->outPut(0, '搜索失败', '');
 }
+
+//
+//$page        = 20;
+//$ex          = [];
+//$ex['count'] = $count;
+//$p           = 0;
+//if ($count > $page) {
+//    $p     = ceil($count / $page) - 1;
+//    $p     = ceil(rand(0, $p));
+//    $count = $page;
+//}
+//$ex['p'] = $p;
+//$list    = $m->music_search($word, 1, $count, $p);
+//$url     = function () use ($list, $count, $m, &$url, &$ex) {
+//    $rand = (int)rand(0, $count - 1);
+//    $song = $list['result']['songs'][$rand];
+//    $info = $m->music_get($song['id']);
+//    $res  = $info['data'][0]['url'];
+//    if ($res) {
+//        $ex['id'] = $song['id'];
+//        return $res;
+//    } else {
+//        return $url();
+//    }
+//};
+
 
 ?>
+
 
 <html>
 <head>
@@ -263,7 +272,6 @@ if ($_GET['ajax']) {
         let src = audio.src;
         window.open(src);
     }
-
     function playOrPause(autoplay = 0)
     {
         if (autoplay) {
@@ -277,7 +285,6 @@ if ($_GET['ajax']) {
             $('#playButton').find('span').attr("class", "glyphicon glyphicon-pause");
         }
     }
-
     function autoPlay(n = 0)
     {
         if (n > 10) {
@@ -292,10 +299,9 @@ if ($_GET['ajax']) {
             setTimeout(() =>
             {
                 autoPlay(n);
-        }, 500);
+            }, 500);
         }
     }
-
     function mplay()
     {
         autoPlay();
@@ -303,7 +309,6 @@ if ($_GET['ajax']) {
             $('#mobile').hide(2000);
         }
     }
-
     function getAnother(ini)
     {
         let w = $('#text').val();
@@ -316,24 +321,20 @@ if ($_GET['ajax']) {
                     url:      '?ajax=1&word=' + w,
                     dataType: 'json',
                     success:  (x) =>
-                {
-                    if (x.r) {
-                audio.src = x.data;
-                autoPlay(0);
-            } else {
-                alert(x.data)
-            }
-
-
-        }
-        }
-        );
+                              {
+                                  if (x.r) {
+                                      audio.src = x.data;
+                                      autoPlay(0);
+                                  } else {
+                                      alert(x.data)
+                                  }
+                              }
+                }
+            );
         } else {
             alert('请写入关键字');
         }
     }
-
-
     function randStr()
     {
         let arr = [
@@ -349,43 +350,38 @@ if ($_GET['ajax']) {
         let r   = Math.ceil(Math.random() * l);
         return arr[r - 1];
     }
-
     $(() =>
     {
         getAnother(randStr());
-    if (typeof window.orientation != 'undefined') {
-        setTimeout(() =>
-        {
-            if (audio.paused) {
-            $('#mobile').show(500);
+        if (typeof window.orientation != 'undefined') {
+            setTimeout(() =>
+            {
+                if (audio.paused) {
+                    $('#mobile').show(500);
+                }
+            }, 1200)
         }
-    }, 1200)
-
-    }
-    $('#playButton').click(() =>
-    {
-        playOrPause();
-    });
-
-    audio.loop    = false;
-    audio.onended = () =>
-    {
-        getAnother();
-    };
-
-    document.body.addEventListener('keypress', (e) =>
-    {
-        let keyCode = e.keyCode || e.which;
-    switch (keyCode) {
-        case 13:
+        $('#playButton').click(() =>
+        {
+            playOrPause();
+        });
+        audio.loop    = false;
+        audio.onended = () =>
+        {
             getAnother();
-            break;
-    }
-    return false;
+        };
+        document.body.addEventListener('keypress', (e) =>
+        {
+            let keyCode = e.keyCode || e.which;
+            switch (keyCode) {
+                case 13:
+                    getAnother();
+                    break;
+            }
+            return false;
+        });
     });
-
-
-    });
-
-
 </script>
+
+
+
