@@ -150,7 +150,7 @@ if ($_GET['ajax']) {
     if ($count > 0) {
         $play = rand(0, $count - 1);
         $p    = 0;
-        if ($play > $offset) {
+        if ($play > $limit) {
             $p    = floor($play / $limit);
             $play = $play - $limit * $p;
         }
