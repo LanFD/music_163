@@ -83,11 +83,11 @@ class Music_163
     {
 //    'http://music.163.com/weapi/song/enhance/player/url?csrf_token=';
 //        {"ids":"[413812377]","br":128000,"csrf_token":""}
-        $p = [
-            'ids'      => '['.$id.']',
-            'br'   => 128000,
+        $p    = [
+            'ids' => '[' . $id . ']',
+            'br'  => 128000,
         ];
-        $p = json_encode($p);
+        $p    = json_encode($p);
         $data = $this->createParam($p);
         return json_decode($this->postAndGetResult('weapi/song/enhance/player/url', $data), true);
 
@@ -138,8 +138,11 @@ class Music_163
     }
 
 }
+
 //$_GET['ajax']= 1;
 if ($_GET['ajax']) {
+    $cacheToServer = $_GET['doCache'] ? 1 : 0; //是否存储到自己的空间以解决跨域
+
     $m     = new Music_163();
     $info  = $m->music_search(
         $word = $_GET['word'] ? $_GET['word'] : '战舰世界',
@@ -166,14 +169,33 @@ if ($_GET['ajax']) {
         $url  = $url['data'][0]['url'];
 
         $ex = [
-            'name' => $song['name'],
-            'al'   => [
+            'cors'  => $cacheToServer,
+            'count' => $count,
+            'name'  => $song['name'],
+            'al'    => [
                 'name' => $song['al']['name'],
                 'pic'  => $song['al']['picUrl']
             ]
 
         ];
-        $m->outPut(1, $url, $ex);
+
+        if ($cacheToServer) {
+            $qiniuUrl = 'https://www.lanfd.top/flashchat/qiniu.php?';
+            $param    = [
+                'ajax' => 1,
+                'url'  => $url,
+                'key'  => $song['name'],
+            ];
+            $qiniuUrl = $qiniuUrl . http_build_query($param);
+            $res      = json_decode(file_get_contents($qiniuUrl), true);
+        } else {
+            $res = ['r' => 1, 'data' => $url];
+        }
+
+
+        if ($res['r']) {
+            $m->outPut(1, $res['data'], $ex);
+        }
 
     }
     $m->outPut(0, '搜索失败', '');
@@ -218,9 +240,20 @@ if ($_GET['ajax']) {
     <link href="https://cdn.bootcss.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdn.bootcss.com/jquery/3.2.1/jquery.min.js"></script>
     <title>随机音乐播放demo</title>
+    <style>
+        .cube {
+            -webkit-transform: translateZ(0);
+            -moz-transform: translateZ(0);
+            -ms-transform: translateZ(0);
+            -o-transform: translateZ(0);
+            transform: translateZ(0);
+            /* Other transform properties here */
+        }
+    </style>
 </head>
 <body>
 <div class="container-fluid" style="height: 100vh">
+    <div class="cube"></div>
     <div class="row" style="margin-top: 1vh; background: #bdbdbd;padding: 1vh">
         <div class="col-xs-12 col-sm-6 col-md-8">
             音乐资源来源于<a href="http://music.163.com/" target="_blank">网易云</a>
@@ -235,34 +268,388 @@ if ($_GET['ajax']) {
     <div class="form-group center-block" style="margin-top: 4vh">
         <div class="input-group">
             <div class="input-group-addon">关键字：</div>
-            <input class="form-control" type="text" id="text" value="" placeholder="写入关键字">
+            <input style="z-index: 0" class="form-control" type="text" id="text" value="" placeholder="写入关键字">
         </div>
-        <div style="margin-top: 1vh">
-            <button id="playButton" type="button" class="btn btn-default">
-                <span class="glyphicon glyphicon-play"></span>
-            </button>
-            <button onclick="getAnother()" type="button" class="btn btn-default">
-                <span class="glyphicon glyphicon-step-forward"></span>
-            </button>
+        <div style="margin-top: 1vh; width:  100%; text-align: center">
+            <form class="form-inline">
+                <div style="float: left" class="form-group">
+                    <button id="playButton" onclick="playOrPause()" type="button" class="btn btn-default">
+                        <span class="glyphicon glyphicon-play"></span>
+                    </button>
+                </div>
+                <div class="form-group" style="float: left; margin-left: 2%">
+                    <button onclick="getAnother()" type="button" class="btn btn-default">
+                        <span class="glyphicon glyphicon-step-forward"></span>
+                    </button>
+                </div>
 
-            <button style="float: right" onclick="down()" type="button" class="btn btn-default">
-                <span class=" glyphicon glyphicon-arrow-down"></span>
-            </button>
 
+                <div style="margin: 0 auto; display: inline-block;">
+                    <label for="">当前播放: </label>
+                    <span id="songInfo" style="color: darkcyan">waiting for data</span>
+                </div>
+
+
+                <button style="float: right" onclick="down()" type="button" class="btn btn-default">
+                    <span class=" glyphicon glyphicon-arrow-down"></span>
+                </button>
+
+
+            </form>
         </div>
 
-        <input class="btn btn-primary" type="submit" id="mobile" onclick="mplay()" style="display: none"
-               value="手机端若未自动播放请点此">
-        <div style="margin-top: 4vh">
-            <canvas id="c" style="z-index: -1; width: 100%;background: transparent"></canvas>
+        <input class="btn btn-primary" type="submit" id="mobile" style="display: none"
+               value="手机端若未自动播放请点播放键">
+        <div style="margin-top: 4vh;width: 100%;height: 50vh">
+            <canvas id="canvas"></canvas>
         </div>
     </div>
     <audio id="audio" src=""></audio>
 </div>
+
+<div id="mask"
+     style="top:0;height: 100vh;width: 100%;position: absolute;background: black;opacity: .7;font-size: 200%;text-align: center;color: white;padding-top: 20vh">
+    downloading ~~please wait~~~
+</div>
+
 </body>
 </html>
+
+
 <script>
-    let audio = $("#audio")[0];
+    class audioCvs {
+        constructor()
+        {
+            this.file        = '';
+            this.confirmStop = 1;//停止播放
+            this.ctldo       = 0;      //自动播放控制
+            this.netError    = 0; //请求失败
+
+        }
+
+        static ini()
+        {
+            return new this()
+        }
+
+
+        loadSound(url, cb = '')
+        {
+            hideShowMask(0);
+            if (this.audioContext) {
+                this.audioContext.close();
+                this.audioBufferSourceNode = '';
+                this.currentTime           = 0;
+                this.confirmStop           = 1;
+                this.RAF ? cancelAnimationFrame(this.RAF) : '';
+            }
+            this.audioContext = new AudioContext();
+            this.data         = url;
+
+            let request = new XMLHttpRequest();//建立一个请求
+            request.open('GET', url, true); //配置好请求类型，文件路径等
+            request.responseType = 'arraybuffer'; //配置数据返回类型
+            // 一旦获取完成，对音频进行进一步操作，比如解码
+            request.onload  = () =>
+            {
+                hideShowMask(1);
+                this.file = request.response;
+                this.loadAudioFile();
+            };
+            request.onerror = () =>
+            {
+                this.netError = 1;
+                return 0
+            };
+
+//            request.onreadystatechange = ()=>{
+//                log('ready:'+request.readyState + '; status:' + request.status);
+//            };
+
+            request.send();
+            if(cb){
+                cb(this.netError);
+            }
+        }
+
+
+        loadAudioFile()
+        {
+            this.audioContext.decodeAudioData(this.file, (buffer) =>
+            {
+                this.getStart(buffer);
+            });
+        }
+
+
+        getStart(buffer, startTime = 0)
+        {
+            this.confirmStop           = 0;
+            this.audioBufferSourceNode = this.audioContext.createBufferSource();
+            let analyser               = this.audioContext.createAnalyser();
+            //connect the source to the analyser
+            this.audioBufferSourceNode.connect(analyser);
+            //connect the analyser to the destination(the speaker), or we won't hear the sound
+            analyser.connect(this.audioContext.destination);
+            //then assign the buffer to the buffer source node
+            this.audioBufferSourceNode.buffer = buffer;
+            //play the source
+            if (startTime) {
+                this.audioBufferSourceNode.start(startTime, startTime);
+            } else {
+                this.audioBufferSourceNode.start(0);
+            }
+
+            this.audioBufferSourceNode.onended = () =>
+            {
+                // log(this.ctldo);
+                // log(parseInt(this.audioBufferSourceNode.buffer.duration) <= parseInt(this.audioContext.currentTime));
+                if (!this.ctldo || parseInt(this.audioBufferSourceNode.buffer.duration) <= parseInt(this.audioContext.currentTime)) {
+                    this.audioBufferSourceNode = '';
+                    this.confirmStop           = 1;
+                    cancelAnimationFrame(this.RAF);
+                    this.ctldo = 0;
+                    getAnother();
+                }
+
+            };
+            let c                              = this.canvasFunc();
+            this.widthExpand();
+            this.canvasImg(analyser, c);
+
+        }
+
+        canvasFunc()
+        {
+            if (this.canvasIns) {
+                return this.canvasIns;
+            } else {
+                return this.canvasIns = Draw.ini('canvas')
+            }
+        }
+
+        stopPlay()
+        {
+            this.confirmStop = 1;
+            this.ctldo       = 1;
+            this.currentTime = (this.audioContext.currentTime - 1) < 0 ? 0 : this.audioContext.currentTime - 1;
+            if (this.audioBufferSourceNode) {
+                this.audioBufferSourceNode.stop(this.audioContext.currentTime + .1);
+            }
+
+        }
+
+        startPlay()
+        {
+            if (this.confirmStop) {
+                this.ctldo       = 0;
+                this.confirmStop = 0;
+                this.getStart(this.audioBufferSourceNode.buffer, this.currentTime);
+            } else {
+                this.stopPlay();
+            }
+
+        }
+
+        minusOrPlus(i, cb)
+        {
+            // return
+            //i <  1? this.canvasCenterY :
+            return cb(
+                i % 2 === 0 ? 1 : 0
+            )
+        }
+
+
+        widthExpand()
+        {
+            let minW            = 2;
+            this.canvasCenterX  = this.canvasIns.width / 2;
+            this.canvasCenterY  = this.canvasIns.height / 2;
+            this.canvasX_maxNum = Math.floor(this.canvasIns.width / minW);
+            this.canvasX_num    = Math.floor(this.canvasX_maxNum / 2);
+            this.canvasX_exW    = Math.ceil(1024 / this.canvasX_num);
+            this.canvasX_num    = Math.floor(1024 / this.canvasX_exW);
+            this.canvasX_ex     = .5 * this.canvasIns.width / this.canvasX_num;
+            this.canvasY_min    = this.canvasIns.height * .5
+        }
+
+        canvasImg(analyser, d)
+        {
+            let array = new Uint8Array(analyser.frequencyBinCount);
+            analyser.getByteFrequencyData(array);
+            let arr = [];
+            let i;
+            let ii  = 0;
+            for (i = 0; i < 1024; i += this.canvasX_exW) {
+
+
+                arr[ii + this.canvasX_num] = [
+                    ii * this.canvasX_ex + this.canvasCenterX,
+                    this.minusOrPlus(ii, (x) =>
+                    {
+                        return x ? this.canvasY_min - array[i] * .6 : this.canvasY_min + array[i] * .6;
+                    })
+                ];
+                arr[this.canvasX_num - ii] = [
+                    -arr[ii + this.canvasX_num][0] + 2 * this.canvasCenterX,
+                    arr[ii + this.canvasX_num][1]
+                ];
+                ii++;
+            }
+            if (!arr[0]) {
+                arr[0] = [0, this.canvasCenterY];
+            }
+//            log(arr);
+//            return;
+
+//            setTimeout(this.canvasImg(analyser), 1000/60);
+            this.RAF = requestAnimationFrame(
+                () =>
+                {
+                    this.canvasImg(analyser, d);
+                    d.dataIn(arr);
+                    d.loopAni();
+                }
+            );
+        }
+    }
+    class Draw {
+        constructor(tag)
+        {
+            this.container = document.getElementById(tag);
+            let p          = this.container.parentNode;
+            this.container.setAttribute('width', p.offsetWidth);
+            this.container.setAttribute('height', p.offsetHeight);
+            this.ctx        = this.container.getContext('2d');
+            this.width      = this.container.width;
+            this.height     = this.container.height;
+            this.center     = {w: this.width / 2, h: this.height / 2};
+            this.r          = (this.center.w >= this.center.h ? this.center.h : this.center.w) / 1.2;
+            this.startAngle = 0;
+            this.CAF        = '';
+            this.ZHEN       = 0;
+        }
+
+        dataIn(x)
+        {
+            this.data = x
+        }
+
+        loopAni()
+        {
+            let t = this;
+            let p = t.data;
+            t.ctx.clearRect(0, 0, this.width, this.height);
+            t.drawBezier(p);
+//            t.CAF = requestAnimationFrame(() => t.loopAni());
+        }
+
+        static ini(x)
+        {
+
+            return new this(x);
+        }
+
+        drawCircle()
+        {
+            let ctx      = this.ctx;
+            let gradient = ctx.createLinearGradient(0, 0, this.width, this.height);
+            gradient.addColorStop("0", randColor());
+            gradient.addColorStop("0.25", randColor());
+            gradient.addColorStop("0.5", randColor());
+            gradient.addColorStop("0.75", randColor());
+            gradient.addColorStop("1", randColor());
+            ctx.beginPath();
+            ctx.rotate(Math.PI / 9000);
+            ctx.arc(this.center.w, this.center.h, this.r, this.startAngle * 1.5, -this.startAngle, false);
+            ctx.strokeStyle = gradient;
+            ctx.stroke();
+            this.startAngle += Math.PI / 60;
+            this.r = this.r / 1.004;
+        }
+
+        getCtrlPoint(p1, p2, p3, p4)
+        {
+            //求p2至p3的控制点
+            /*
+             pi(xi,yi);i = [0,1,2....,n]
+             pi->pi+1;
+             控制点为a1,b1;
+             a1(xi + a(xi+1 - xi-1), yi + a(yi+1 - yi-1))
+             b1(xi+1 - a(xi+2 - xi), yi+1 - a(yi+2 - yi))
+             */
+            let a  = .25;
+            let b  = .25;
+            let a1 = [p2[0] + a * (p3[0] - p1[0]), p2[1] + a * (p3[1] - p1[1])];
+            let b1 = [p3[0] - b * (p4[0] - p2[0]), p3[1] - b * (p4[1] - p2[1])];
+            return [a1, b1];
+        }
+
+        drawPoint(x, y, color = 'black')
+        {
+            let t   = this;
+            let ctx = t.ctx;
+            ctx.save();
+            ctx.arc(x, y, 1, 0, Math.PI * 2, false);
+            ctx.strokeStyle = color;
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        //绘制贝塞尔曲线
+        drawBezier(point)
+        {
+            let t        = this;
+            let ctx      = t.ctx;
+            let l        = point.length - 1;
+            let gradient = ctx.createLinearGradient(0, 0, this.width, this.height);
+            gradient.addColorStop("0", "#f8ec3e");
+            gradient.addColorStop("0.25", "#af1027");
+            gradient.addColorStop("0.5", "#2480a5");
+            gradient.addColorStop("0.75", "#b310bd");
+            gradient.addColorStop("1", "black");
+            if (l < 1) {
+                alert('至少需要2个点绘制曲线');
+                return false;
+            }
+            ctx.beginPath();
+
+            ctx.moveTo(point[0][0], point[0][1]);
+            for (let i = 0; i < l; i++) {
+                let c = t.getCtrlPoint(
+                    point[i - 1] ? point[i - 1] : point[i],
+                    point[i],
+                    point[i + 1],
+                    point[i + 2] ? point[i + 2] : point[i + 1]
+                );
+                ctx.bezierCurveTo(c[0][0], c[0][1], c[1][0], c[1][1], point[i + 1][0], point[i + 1][1]);
+            }
+            ctx.strokeStyle = gradient;
+            ctx.stroke();
+        }
+    }
+
+
+    /*
+    无法跨域时使用audio
+     */
+    let audioC    = audioCvs.ini();
+    let audio     = $("#audio")[0];
+    let canCross  = 1;//默认可跨域
+    audio.loop    = false;
+    audio.onended = () =>
+    {
+        getAnother();
+    };
+
+
+    function hideShowMask(h = 0)
+    {
+        let m = $('#mask');
+        h ? m.hide(1000) : m.show(0);
+    }
+
     function log(x)
     {
         console.log(x);
@@ -272,45 +659,75 @@ if ($_GET['ajax']) {
         let src = audio.src;
         window.open(src);
     }
-    function playOrPause(autoplay = 0)
+    function playOrPause($ctrl = 0)
     {
-        if (autoplay) {
-            audio.pause();
+        log('stop:' + audioC.confirmStop);
+        $('#mobile').hide(500);
+        let viewDo = 'play';
+        switch ($ctrl) {
+            case 'stop':
+//                audioC.stopPlay();
+                canCross ? audioC.stopPlay() :  audio.pause();
+                viewDo = 'pause';
+                break;
+            case 'play':
+//                audioC.startPlay();
+                canCross ? audioC.startPlay() : audio.play();
+                break;
+            default:
+                if(canCross){
+                    if (audioC.ctldo) {
+                        audioC.startPlay();
+//            audio.play();
+                    } else {
+                        audioC.stopPlay();
+                        viewDo = 'pause';
+                    }
+                }else {
+                    if(audio.paused){
+                        audio.play();
+                    }else {
+                        audio.pause();
+                        viewDo = 'pause';
+                    }
+                }
         }
-        if (audio.paused) {
-            audio.play();
-            $('#playButton').find('span').attr("class", "glyphicon glyphicon-play");
-        } else {
-            audio.pause();
+        if(   viewDo === 'pause'){
             $('#playButton').find('span').attr("class", "glyphicon glyphicon-pause");
+        }else {
+            $('#playButton').find('span').attr("class", "glyphicon glyphicon-play");
         }
+
+       
+
     }
-    function autoPlay(n = 0)
-    {
-        if (n > 10) {
-            //获取资源失败
-            getAnother();
-            return;
-        }
-        if (audio.readyState) {
-            playOrPause(1);
-        } else {
-            n++;
-            setTimeout(() =>
-            {
-                autoPlay(n);
-            }, 500);
-        }
-    }
-    function mplay()
-    {
-        autoPlay();
-        if (audio.readyState) {
-            $('#mobile').hide(2000);
-        }
-    }
+    // function autoPlay(n = 0)
+    // {
+    //     if (n > 10) {
+    //         //获取资源失败
+    //         getAnother();
+    //         return;
+    //     }
+    //     if (audio.readyState) {
+    //         playOrPause(1);
+    //     } else {
+    //         n++;
+    //         setTimeout(() =>
+    //         {
+    //             autoPlay(n);
+    //         }, 500);
+    //     }
+    // }
+    // function mplay()
+    // {
+    //     autoPlay();
+    //     if (audio.readyState) {
+    //         $('#mobile').hide(2000);
+    //     }
+    // }
     function getAnother(ini)
     {
+        hideShowMask(0);
         let w = $('#text').val();
         if (ini) {
             w = ini;
@@ -318,15 +735,34 @@ if ($_GET['ajax']) {
         }
         if (w) {
             $.ajax({
-                    url:      '?ajax=1&word=' + w,
+                    url:      '?ajax=1&word=' + w + '&doCache='+ GetQueryString('doCache'),
                     dataType: 'json',
                     success:  (x) =>
                               {
                                   if (x.r) {
-                                      audio.src = x.data;
-                                      autoPlay(0);
+
+                                      if(canCross && x.ex.cors){
+                                          audioC.loadSound(x.data);
+                                      }else {
+                                          hideShowMask(1);
+                                          canCross  = 0;
+                                          audio.src = x.data;
+                                          audio.play(0);
+                                      }
+
+                                      if (x.ex.name) {
+                                          $('#songInfo').html(x.ex.name);
+                                      }
+
+
                                   } else {
-                                      alert(x.data)
+                                       alert(x.data + ',点击确定后将自动重新搜索');
+                                       setTimeout(() => {
+                                           getAnother();
+                                       }, 500)
+
+
+//                                      alert(x.data)
                                   }
                               }
                 }
@@ -350,26 +786,39 @@ if ($_GET['ajax']) {
         let r   = Math.ceil(Math.random() * l);
         return arr[r - 1];
     }
+
+
+    function GetQueryString(name)
+    {
+        let reg = new RegExp("(^|&)" + name + "=([^&]*)(&|$)");
+        let r   = window.location.search.substr(1).match(reg);
+        if (r != null)return unescape(r[2]);
+        return '';
+    }
+   
+
     $(() =>
     {
-        getAnother(randStr());
+        let k = GetQueryString('k');
+        let str = '';
+        if (k) {
+            str = k;
+        } else {
+            str = randStr();
+        }
+        getAnother(str);
         if (typeof window.orientation != 'undefined') {
             setTimeout(() =>
             {
-                if (audio.paused) {
+                if (audio.confirmStop) {
                     $('#mobile').show(500);
                 }
             }, 1200)
         }
-        $('#playButton').click(() =>
-        {
-            playOrPause();
-        });
-        audio.loop    = false;
-        audio.onended = () =>
-        {
-            getAnother();
-        };
+        // $('#playButton').click(() =>
+        // {
+        //     playOrPause();
+        // });
         document.body.addEventListener('keypress', (e) =>
         {
             let keyCode = e.keyCode || e.which;
