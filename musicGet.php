@@ -180,7 +180,7 @@ if ($_GET['ajax']) {
         ];
 
         if ($cacheToServer) {
-            $qiniuUrl = 'https://www.lanfd.top/flashchat/qiniu.php?';
+            $qiniuUrl = 'https://www.lanfd.top/flashchat/qiniu.php?'; //此为自己缓存歌曲的服务器
             $param    = [
                 'ajax' => 1,
                 'url'  => $url,
