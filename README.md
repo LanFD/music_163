@@ -1,5 +1,5 @@
 # music_163
-php抓取网易云音乐资源<br />
+php获取网易云音乐资源<br />
 示例  <br />
  有波形图：http://www.lanfd.top/flashchat/musicGet.php?doCache=1<br />
  无波形图：http://www.lanfd.top/flashchat/musicGet.php<br />
