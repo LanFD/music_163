@@ -4,23 +4,6 @@ class Music_163
 {
 
 
-    function curl_get($url)
-    {
-        $refer    = "http://music.163.com/";
-        $header[] = "Cookie: " . "appver=1.5.0.75771;";
-
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $url);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, $header);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_BINARYTRANSFER, true);
-        curl_setopt($ch, CURLOPT_REFERER, $refer);
-        $output = curl_exec($ch);
-        curl_close($ch);
-        return $output;
-    }
-
-
     function postAndGetResult($url, $data)
     {
         $url       = "http://music.163.com/" . $url;
@@ -61,11 +44,30 @@ class Music_163
         return $result;
     }
 
-    function music_search($word = '战舰世界', $offset = 0, $limit = 30)
+    /*
+     * type=1             单曲
+
+type=10           专辑
+
+type=100         歌手
+
+type=1000      歌单
+
+type=1002      用户
+
+type=1004       MV
+
+type=1006      歌词
+
+type=1009      主播电台
+     */
+
+    function music_search($word = '战舰世界', $offset = 0, $limit = 30, $type = 1)
     {
+        //http://music.163.com/weapi/cloudsearch/get/web?csrf_token=
         $p = [
             's'      => $word,
-            'type'   => 1,
+            'type'   => $type,
             'offset' => $offset,
             'total'  => 'true',
             'limit'  => $limit,
@@ -78,18 +80,26 @@ class Music_163
             true);
     }
 
+    /*
+     * 获取歌单歌曲信息
+     */
+    function music_list($id = 2181436358)
+    {
+        return json_decode(file_get_contents('http://music.163.com/api/playlist/detail?id=' . $id), true);
+    }
 
-    function music_get($id)
+
+    function music_get($id, $br = 128000)
     {
 //    'http://music.163.com/weapi/song/enhance/player/url?csrf_token=';
 //        {"ids":"[413812377]","br":128000,"csrf_token":""}
         $p    = [
             'ids' => '[' . $id . ']',
-            'br'  => 128000,
+            'br'  => $br,
         ];
         $p    = json_encode($p);
         $data = $this->createParam($p);
-        return json_decode($this->postAndGetResult('weapi/song/enhance/player/url', $data), true);
+        return json_decode($this->postAndGetResult('weapi/song/enhance/player/url?csrf_token=', $data), true);
 
         /*
          *  {"data":[{"id":413812378,"url":"http://m10.music.126.net/20170930150020/5a60f4e62d8da953894c00a57f083203/ymusic/2a0c/718e/fecc/d2407d8228490343a94dc008463d3aab.mp3","br":128000,"size":1778042,"md5":"d2407d8228490343a94dc008463d3aab","code":200,"expi":1200,"type":"mp3","gain":-2.0E-4,"fee":0,"uf":null,"payed":0,"flag":0,"canExtend":false}],"code":200}
@@ -143,34 +153,103 @@ class Music_163
 if ($_GET['ajax']) {
     $cacheToServer = $_GET['doCache'] ? 1 : 0; //是否存储到自己的空间以解决跨域
 
-    $m     = new Music_163();
-    $info  = $m->music_search(
-        $word = $_GET['word'] ? $_GET['word'] : '战舰世界',
-        $offset = 0,
-        $limit = 30
-    );
-    $count = $info['result']['songCount'];
-    if ($count > 0) {
-        $play = rand(0, $count - 1);
-        $p    = 0;
-        if ($play > $limit) {
-            $p    = floor($play / $limit);
-            $play = $play - $limit * $p;
-        }
-        if ($p > 0) {
-            $info = $m->music_search(
-                $word,
-                $p,
-                $limit
-            );
-        }
-        $song = $info['result']['songs'][$play];
-        $url  = $m->music_get($song['id']);
-        $url  = $url['data'][0]['url'];
+    $m = new Music_163();
+//    $r = $m->music_list();
 
-        $ex = [
+    if(isset($_GET['song_id'])){
+        $song['id'] = $_GET['song_id'];
+    }else{
+
+        $type = isset($_GET['type']) ? $_GET['type'] : 1000;
+        //单曲和歌单区分
+        $song = '';
+        $info = $m->music_search(
+            $word = $_GET['word'] ? $_GET['word'] : '战舰世界',
+            $offset = 0,
+            $limit = 30,
+            $type
+        );
+
+
+        switch ($type) {
+            case 1:
+                //单曲
+                $count = $info['result']['songCount'];
+                if ($count > 0) {
+                    $play = rand(0, $count - 1);
+                    $p    = 0;
+                    if ($play > $limit) {
+                        $p    = floor($play / $limit);
+                        $play = $play - $limit * $p;
+                    }
+                    if ($p > 0) {
+                        $info = $m->music_search(
+                            $word,
+                            $p,
+                            $limit,
+                            $type
+                        );
+                    }
+//        print_r($info);exit;
+                    $song = $info['result']['songs'][$play];
+
+                }
+                break;
+            case 1000:
+                //歌单
+                if ($info['code'] == 200) {
+                    $count = $info['result']['playlistCount'];
+                    if ($count > 0) {
+                        $play = rand(0, $count - 1);
+                        $p    = 0;
+                        if ($play > $limit) {
+                            $p    = floor($play / $limit);
+                            $play = $play - $limit * $p;
+                        }
+                        if ($p > 0) {
+                            $info = $m->music_search(
+                                $word,
+                                $p,
+                                $limit,
+                                $type
+                            );
+                        }
+
+                        $list = $info['result']['playlists'][$play];
+                        if ($list) {
+                            $songList = $m->music_list($list['id']);
+                            if ($songList['code'] == 200) {
+                                $song = rand(0, $songList['result']['trackCount']);
+                                $song = $songList['result']['tracks'][$song];
+                            }
+                        }
+
+                    }
+                }
+                break;
+        }
+    }
+
+
+
+    function getMusic($id, $try = 0){
+        global  $m;
+        global  $cacheToServer;
+        global  $songList;
+        global  $song;
+        $try ++ ;
+        if($try > 10){
+            $m->outPut(0,'搜索失败');
+        }
+
+        $url = $m->music_get($id);
+
+        $url = $url['data'][0]['url'];
+        if(!$url){
+            getMusic($id, $try);
+        }
+        $ex  = [
             'cors'  => $cacheToServer,
-            'count' => $count,
             'name'  => $song['name'],
             'al'    => [
                 'name' => $song['al']['name'],
@@ -180,11 +259,11 @@ if ($_GET['ajax']) {
         ];
 
         if ($cacheToServer) {
-            $qiniuUrl = 'https://www.lanfd.top/flashchat/qiniu.php?'; //此为自己缓存歌曲的服务器
+            $qiniuUrl = 'https://www.lanfd.top/flashchat/qiniu.php?';
             $param    = [
                 'ajax' => 1,
                 'url'  => $url,
-                'key'  => $song['name'],
+                'key'  => isset($song['name']) ? $song['name'] : '' . $song['id'],
             ];
             $qiniuUrl = $qiniuUrl . http_build_query($param);
             $res      = json_decode(file_get_contents($qiniuUrl), true);
@@ -192,40 +271,17 @@ if ($_GET['ajax']) {
             $res = ['r' => 1, 'data' => $url];
         }
 
-
         if ($res['r']) {
+            if (isset($songList)) {
+                $ex['song_list'] = $songList;
+            }
             $m->outPut(1, $res['data'], $ex);
         }
-
     }
-    $m->outPut(0, '搜索失败', '');
+
+    getMusic($song['id']);
+
 }
-
-//
-//$page        = 20;
-//$ex          = [];
-//$ex['count'] = $count;
-//$p           = 0;
-//if ($count > $page) {
-//    $p     = ceil($count / $page) - 1;
-//    $p     = ceil(rand(0, $p));
-//    $count = $page;
-//}
-//$ex['p'] = $p;
-//$list    = $m->music_search($word, 1, $count, $p);
-//$url     = function () use ($list, $count, $m, &$url, &$ex) {
-//    $rand = (int)rand(0, $count - 1);
-//    $song = $list['result']['songs'][$rand];
-//    $info = $m->music_get($song['id']);
-//    $res  = $info['data'][0]['url'];
-//    if ($res) {
-//        $ex['id'] = $song['id'];
-//        return $res;
-//    } else {
-//        return $url();
-//    }
-//};
-
 
 ?>
 
@@ -237,8 +293,9 @@ if ($_GET['ajax']) {
           content="width=device-width,initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
     <meta name="full-screen" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes"/>
+    <meta name="referrer" content="no-referrer"/>
     <link href="https://cdn.bootcss.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet">
-    <script src="https://cdn.bootcss.com/jquery/3.2.1/jquery.min.js"></script>
+    <script src="http://cdn.bootcss.com/jquery/3.3.1/jquery.min.js"></script>
     <title>随机音乐播放demo</title>
     <style>
         .cube {
@@ -248,6 +305,10 @@ if ($_GET['ajax']) {
             -o-transform: translateZ(0);
             transform: translateZ(0);
             /* Other transform properties here */
+        }
+
+        .song_list {
+            display: none;
         }
     </style>
 </head>
@@ -267,6 +328,11 @@ if ($_GET['ajax']) {
     </div>
     <div class="form-group center-block" style="margin-top: 4vh">
         <div class="input-group">
+            <div class="input-group-addon">搜索模式：</div>
+            <select id="type" name="s" class="form-control" style="z-index:  0">
+                <option value="1000" selected="selected">歌单</option>
+                <option value="1">单曲</option>
+            </select>
             <div class="input-group-addon">关键字：</div>
             <input style="z-index: 0" class="form-control" type="text" id="text" value="" placeholder="写入关键字">
         </div>
@@ -281,8 +347,23 @@ if ($_GET['ajax']) {
                     <button onclick="getAnother()" type="button" class="btn btn-default">
                         <span class="glyphicon glyphicon-step-forward"></span>
                     </button>
+
+
+                    <label class="radio-inline song_list">
+                        <input checked type="radio" name="play" value="0"> 继续播放歌单
+                    </label>
+                    <label class="radio-inline song_list">
+                        <input type="radio" name="play" value="1"> 搜索新歌单
+                    </label>
+
+
                 </div>
 
+
+                <div class="song_list" style="margin: 0 auto; display: none;">
+                    <label for="">歌单信息: </label>
+                    <span id="songListInfo" style="color: #d95c37">waiting for data</span>
+                </div>
 
                 <div style="margin: 0 auto; display: inline-block;">
                     <label for="">当前播放: </label>
@@ -308,7 +389,7 @@ if ($_GET['ajax']) {
 </div>
 
 <div id="mask"
-     style="top:0;height: 100vh;width: 100%;position: absolute;background: black;opacity: .7;font-size: 200%;text-align: center;color: white;padding-top: 20vh">
+     style="z-index:99;top:0;height: 100vh;width: 100%;position: absolute;background: black;opacity: .7;font-size: 200%;text-align: center;color: white;padding-top: 20vh">
     downloading ~~please wait~~~
 </div>
 
@@ -367,7 +448,7 @@ if ($_GET['ajax']) {
 //            };
 
             request.send();
-            if(cb){
+            if (cb) {
                 cb(this.netError);
             }
         }
@@ -632,7 +713,7 @@ if ($_GET['ajax']) {
 
 
     /*
-    无法跨域时使用audio
+     无法跨域时使用audio
      */
     let audioC    = audioCvs.ini();
     let audio     = $("#audio")[0];
@@ -642,6 +723,25 @@ if ($_GET['ajax']) {
     {
         getAnother();
     };
+
+    /*
+     1000歌单， 1单曲
+     */
+    let type   = 1000;
+    let sl;
+    let urlAdd = '';
+
+    $("#type").change(function ()
+    {
+        if ($(this).val() == 1) {
+            $('.song_list').hide();
+        } else {
+            if ($('#songListInfo').html != '') {
+                $('.song_list').show();
+            }
+
+        }
+    });
 
 
     function hideShowMask(h = 0)
@@ -667,7 +767,7 @@ if ($_GET['ajax']) {
         switch ($ctrl) {
             case 'stop':
 //                audioC.stopPlay();
-                canCross ? audioC.stopPlay() :  audio.pause();
+                canCross ? audioC.stopPlay() : audio.pause();
                 viewDo = 'pause';
                 break;
             case 'play':
@@ -675,7 +775,7 @@ if ($_GET['ajax']) {
                 canCross ? audioC.startPlay() : audio.play();
                 break;
             default:
-                if(canCross){
+                if (canCross) {
                     if (audioC.ctldo) {
                         audioC.startPlay();
 //            audio.play();
@@ -683,22 +783,21 @@ if ($_GET['ajax']) {
                         audioC.stopPlay();
                         viewDo = 'pause';
                     }
-                }else {
-                    if(audio.paused){
+                } else {
+                    if (audio.paused) {
                         audio.play();
-                    }else {
+                    } else {
                         audio.pause();
                         viewDo = 'pause';
                     }
                 }
         }
-        if(   viewDo === 'pause'){
+        if (viewDo === 'pause') {
             $('#playButton').find('span').attr("class", "glyphicon glyphicon-pause");
-        }else {
+        } else {
             $('#playButton').find('span').attr("class", "glyphicon glyphicon-play");
         }
 
-       
 
     }
     // function autoPlay(n = 0)
@@ -728,38 +827,74 @@ if ($_GET['ajax']) {
     function getAnother(ini)
     {
         hideShowMask(0);
+        urlAdd = '';
         let w = $('#text').val();
         if (ini) {
             w = ini;
             $('#text').val(w);
         }
+        type = $('#type').val();
+        if (type == 1000) {
+            let p = $("input[name='play']:checked").val();
+            if (p == 0) {
+                //继续播放歌单
+                if (sl) {
+                    let l   = sl.trackCount;
+                    r   = Math.ceil(Math.random() * l);
+                    let id  = sl.tracks[r - 1].id;
+                    if(id){
+                        urlAdd = '&song_id=' + id;
+                    }
+                }
+            }
+        }
         if (w) {
             $.ajax({
-                    url:      '?ajax=1&word=' + w + '&doCache='+ GetQueryString('doCache'),
+                    url:      '?ajax=1&word=' + w + '&doCache=' + GetQueryString('doCache') + '&type=' + type + urlAdd,
                     dataType: 'json',
+                    type:     'POST',
                     success:  (x) =>
                               {
                                   if (x.r) {
 
-                                      if(canCross && x.ex.cors){
+                                      if (canCross && x.ex.cors) {
                                           audioC.loadSound(x.data);
-                                      }else {
+                                          audio.src = x.data;
+                                      } else {
                                           hideShowMask(1);
                                           canCross  = 0;
                                           audio.src = x.data;
                                           audio.play(0);
                                       }
+                                      if(urlAdd){
+                                          log(sl);
+                                          x.ex = sl.tracks[r - 1];
+                                          x.ex.song_list = {};
+                                          x.ex.song_list.result = sl;
+                                      }
 
                                       if (x.ex.name) {
                                           $('#songInfo').html(x.ex.name);
                                       }
+                                      if (x.ex.song_list) {
+                                          sl = x.ex.song_list.result;
+
+                                          let ss = x.ex.song_list.result.name + '(共:' + x.ex.song_list.result.trackCount
+                                              + ' 首)';
+                                          $('#songListInfo').html(ss);
+                                          $('.song_list').show();
+                                      } else {
+                                          $('#songListInfo').html('');
+                                          $('.song_list').hide();
+                                      }
 
 
                                   } else {
-                                       alert(x.data + ',点击确定后将自动重新搜索');
-                                       setTimeout(() => {
-                                           getAnother();
-                                       }, 500)
+                                      alert(x.data + ',点击确定后将自动重新搜索(可能歌曲已下架或需付费)');
+                                      setTimeout(() =>
+                                      {
+                                          getAnother();
+                                      }, 500)
 
 
 //                                      alert(x.data)
@@ -774,13 +909,8 @@ if ($_GET['ajax']) {
     function randStr()
     {
         let arr = [
-            '战舰世界',
-            '高达',
-            'Touhou',
-            '初音',
-            'acg',
-            '钢琴',
-            '小提琴'
+            '燃曲'
+
         ];
         let l   = arr.length;
         let r   = Math.ceil(Math.random() * l);
@@ -795,11 +925,11 @@ if ($_GET['ajax']) {
         if (r != null)return unescape(r[2]);
         return '';
     }
-   
+
 
     $(() =>
     {
-        let k = GetQueryString('k');
+        let k   = GetQueryString('k');
         let str = '';
         if (k) {
             str = k;
