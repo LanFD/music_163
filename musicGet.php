@@ -245,6 +245,9 @@ if ($_GET['ajax']) {
             $m->outPut(0, '搜索失败');
         }
         if ($try % 3 == 0) {
+            if(!$song){
+                $m->outPut(0, '搜索失败');
+            }
             $play = rand(0, count($song));
             $id   = 0;
             getMusic($try);
@@ -287,6 +290,7 @@ if ($_GET['ajax']) {
 
     getMusic();
 
+    exit;
 }
 
 ?>
