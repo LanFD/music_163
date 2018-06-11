@@ -156,9 +156,9 @@ if ($_GET['ajax']) {
     $m = new Music_163();
 //    $r = $m->music_list();
 
-    if(isset($_GET['song_id'])){
-        $song['id'] = $_GET['song_id'];
-    }else{
+    if (isset($_GET['song_id'])) {
+        $id = $_GET['song_id'];
+    } else {
 
         $type = isset($_GET['type']) ? $_GET['type'] : 1000;
         //单曲和歌单区分
@@ -219,8 +219,8 @@ if ($_GET['ajax']) {
                         if ($list) {
                             $songList = $m->music_list($list['id']);
                             if ($songList['code'] == 200) {
-                                $song = rand(0, $songList['result']['trackCount']);
-                                $song = $songList['result']['tracks'][$song];
+                                $play = rand(0, $songList['result']['trackCount']);
+                                $song = $songList['result']['tracks'];
                             }
                         }
 
@@ -231,27 +231,33 @@ if ($_GET['ajax']) {
     }
 
 
-
-    function getMusic($id, $try = 0){
-        global  $m;
-        global  $cacheToServer;
-        global  $songList;
-        global  $song;
-        $try ++ ;
-        if($try > 10){
-            $m->outPut(0,'搜索失败');
+    function getMusic($try = 1)
+    {
+        global $m;
+        global $cacheToServer;
+        global $songList;
+        global $song;
+        global $play;
+        global $id;
+        $try++;
+        $id = $id ? $id : $song[$play]['id'];
+        if ($try > 9) {
+            $m->outPut(0, '搜索失败');
         }
-
+        if ($try % 3 == 0) {
+            $play = rand(0, count($song));
+            $id   = 0;
+            getMusic($try);
+        }
         $url = $m->music_get($id);
-
         $url = $url['data'][0]['url'];
-        if(!$url){
-            getMusic($id, $try);
+        if (!$url) {
+            getMusic($try);
         }
-        $ex  = [
-            'cors'  => $cacheToServer,
-            'name'  => $song['name'],
-            'al'    => [
+        $ex = [
+            'cors' => $cacheToServer,
+            'name' => $song['name'] ? $song['name'] : $song[$play]['name'],
+            'al'   => [
                 'name' => $song['al']['name'],
                 'pic'  => $song['al']['picUrl']
             ]
@@ -279,7 +285,7 @@ if ($_GET['ajax']) {
         }
     }
 
-    getMusic($song['id']);
+    getMusic();
 
 }
 
@@ -828,7 +834,7 @@ if ($_GET['ajax']) {
     {
         hideShowMask(0);
         urlAdd = '';
-        let w = $('#text').val();
+        let w  = $('#text').val();
         if (ini) {
             w = ini;
             $('#text').val(w);
@@ -839,10 +845,10 @@ if ($_GET['ajax']) {
             if (p == 0) {
                 //继续播放歌单
                 if (sl) {
-                    let l   = sl.trackCount;
-                    r   = Math.ceil(Math.random() * l);
-                    let id  = sl.tracks[r - 1].id;
-                    if(id){
+                    let l  = sl.trackCount;
+                    r      = Math.ceil(Math.random() * l);
+                    let id = sl.tracks[r - 1].id;
+                    if (id) {
                         urlAdd = '&song_id=' + id;
                     }
                 }
@@ -866,10 +872,10 @@ if ($_GET['ajax']) {
                                           audio.src = x.data;
                                           audio.play(0);
                                       }
-                                      if(urlAdd){
+                                      if (urlAdd) {
                                           log(sl);
-                                          x.ex = sl.tracks[r - 1];
-                                          x.ex.song_list = {};
+                                          x.ex                  = sl.tracks[r - 1];
+                                          x.ex.song_list        = {};
                                           x.ex.song_list.result = sl;
                                       }
 
@@ -890,7 +896,7 @@ if ($_GET['ajax']) {
 
 
                                   } else {
-                                      alert(x.data + ',点击确定后将自动重新搜索(可能歌曲已下架或需付费)');
+//                                      alert(x.data + ',点击确定后将自动重新搜索(可能歌曲已下架或需付费)');
                                       setTimeout(() =>
                                       {
                                           getAnother();
