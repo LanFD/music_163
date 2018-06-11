@@ -176,7 +176,7 @@ if ($_GET['ajax']) {
                 //单曲
                 $count = $info['result']['songCount'];
                 if ($count > 0) {
-                    $play = rand(0, $count - 1);
+                    $play = rand(0, $count);
                     $p    = 0;
                     if ($play > $limit) {
                         $p    = floor($play / $limit);
@@ -200,7 +200,7 @@ if ($_GET['ajax']) {
                 if ($info['code'] == 200) {
                     $count = $info['result']['playlistCount'];
                     if ($count > 0) {
-                        $play = rand(0, $count - 1);
+                        $play = rand(0, $count);
                         $p    = 0;
                         if ($play > $limit) {
                             $p    = floor($play / $limit);
