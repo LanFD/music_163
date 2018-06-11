@@ -267,6 +267,7 @@ if ($_GET['ajax']) {
 
         ];
 
+        //@todo
         if ($cacheToServer) {
             $qiniuUrl = 'https://www.lanfd.top/flashchat/qiniu.php?';
             $param    = [
