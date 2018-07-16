@@ -2,46 +2,32 @@
 
 class Music_163
 {
+    public $storagePath = 'mp3';//本地存歌文件夹名
 
 
-    function postAndGetResult($url, $data)
+    function httpPost($url = '', array $param)
     {
-        $url       = "http://music.163.com/" . $url;
-        $post_data = $data;
-        $referrer  = "http://music.163.com/";
-        $URL_Info  = parse_url($url);
-        $values    = [];
-        $result    = '';
-        $request   = '';
-        foreach ($post_data as $key => $value) {
+        $url    = "http://music.163.com/" . $url;
+        $values = [];
+        foreach ($param as $key => $value) {
             $values[] = "$key=" . urlencode($value);
         }
-        $data_string = implode("&", $values);
-        if (!isset($URL_Info["port"])) {
-            $URL_Info["port"] = 80;
-        }
-        $request .= "POST " . $URL_Info["path"] . " HTTP/1.1\n";
-        $request .= "Host: " . $URL_Info["host"] . "\n";
-        $request .= "Referer: $referrer\n";
-        $request .= "Content-type: application/x-www-form-urlencoded\n";
-        $request .= "Content-length: " . strlen($data_string) . "\n";
-        $request .= "Connection: close\n";
-//        $request .= "Cookie: " . "appver=1.5.0.75771;\n";
-        $request .= "\n";
-        $request .= $data_string . "\n";
-        $fp      = fsockopen($URL_Info["host"], $URL_Info["port"]);
-        fputs($fp, $request);
-        $i = 1;
-        while (!feof($fp)) {
-            if ($i >= 15) {
-                $result .= fgets($fp);
-            } else {
-                fgets($fp);
-                $i++;
-            }
-        }
-        fclose($fp);
-        return $result;
+        error_reporting(E_ALL);
+        $values = implode('&', $values);
+        $ch     = curl_init();//初始化curl
+        curl_setopt($ch, CURLOPT_URL, $url);//抓取指定网页
+        curl_setopt($ch, CURLOPT_HEADER, 0);//设置header
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);//要求结果为字符串且输出到屏幕上
+        curl_setopt($ch, CURLOPT_POST, 1);//post提交方式
+
+        //字符串时自动为application/x-www-form-urlencoded
+        //数组时自动为 form-data
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $values);
+
+        $data = curl_exec($ch);//运行curl
+        curl_close($ch);
+
+        return $data;
     }
 
     /*
@@ -74,7 +60,7 @@ type=1009      主播电台
         ];
         $p = json_encode($p);
         return json_decode(
-            $this->postAndGetResult('weapi/cloudsearch/get/web',
+            $this->httpPost('weapi/cloudsearch/get/web',
                 $this->createParam($p)
             ),
             true);
@@ -99,7 +85,7 @@ type=1009      主播电台
         ];
         $p    = json_encode($p);
         $data = $this->createParam($p);
-        return json_decode($this->postAndGetResult('weapi/song/enhance/player/url?csrf_token=', $data), true);
+        return json_decode($this->httpPost('weapi/song/enhance/player/url?csrf_token=', $data), true);
 
         /*
          *  {"data":[{"id":413812378,"url":"http://m10.music.126.net/20170930150020/5a60f4e62d8da953894c00a57f083203/ymusic/2a0c/718e/fecc/d2407d8228490343a94dc008463d3aab.mp3","br":128000,"size":1778042,"md5":"d2407d8228490343a94dc008463d3aab","code":200,"expi":1200,"type":"mp3","gain":-2.0E-4,"fee":0,"uf":null,"payed":0,"flag":0,"canExtend":false}],"code":200}
@@ -122,8 +108,8 @@ type=1009      主播电台
 //        $text    = json_encode($text);
         $nonce   = '0CoJUm6Qyw8W8jud';
         $secKey  = 'FFFFFFFFFFFFFFFF';
-        $encText = $this->AES_encrypt(
-            $this->AES_encrypt($text, $nonce),
+        $encText = $this->AesEncrypt(
+            $this->AesEncrypt($text, $nonce),
             $secKey);
 //    $encSecKey = RSA_encrypt($secKey, $pubKey, $modulus);  不需要计算rsa加密，在密钥$secKey固定的情况此值不会变化
         $encSecKey = '257348aecb5e556c066de214e531faadd1c55d814f9be95fd06d6bff9f4c7a41f831f6394d5a3fd2e3881736d94a02ca919d952872e7d0a50ebfa1769a7a62d512f5f1ca21aec60bc3819a9c3ffca5eca9a0dba6d6f7249b06f5965ecfff3695b54e1c28f3f624750ed39e7de08fc8493242e26dbc4484a01c76f739e135637c';
@@ -133,7 +119,8 @@ type=1009      主播电台
         ];
     }
 
-    function AES_encrypt($text, $key, $iv = '0102030405060708')
+
+    function AesEncrypt($text, $key, $iv = '0102030405060708')
     {
         $pad       = 16 - strlen($text) % 16;
         $text      = $text . str_repeat(chr($pad), $pad);
@@ -141,10 +128,34 @@ type=1009      主播电台
         return base64_encode($encryptor);
     }
 
+
     function outPut($r = 0, $data = [], $extra = '')
     {
         echo json_encode(['r' => $r, 'data' => $data, 'ex' => $extra]);
         exit;
+    }
+
+    function canWrite($file)
+    {
+        if (is_dir($file)) {
+            $dir = $file;
+            if ($fp = @fopen("$dir/test.txt", 'w')) {
+                @fclose($fp);
+                @unlink("$dir/test.txt");
+                $writeable = 1;
+            } else {
+                $writeable = 0;
+            }
+        } else {
+            if ($fp = @fopen($file, 'a+')) {
+                @fclose($fp);
+                $writeable = 1;
+            } else {
+                $writeable = 0;
+            }
+        }
+
+        return $writeable;
     }
 
 }
@@ -154,7 +165,8 @@ if ($_GET['ajax']) {
     $cacheToServer = $_GET['doCache'] ? 1 : 0; //是否存储到自己的空间以解决跨域
 
     $m = new Music_163();
-//    $r = $m->music_list();
+//    $r = $m->music_search();
+//    print_r($r);exit;
 
     if (isset($_GET['song_id'])) {
         $id = $_GET['song_id'];
@@ -162,7 +174,8 @@ if ($_GET['ajax']) {
 
         $type = isset($_GET['type']) ? $_GET['type'] : 1000;
         //单曲和歌单区分
-        $song = '';
+        $song = [];
+
         $info = $m->music_search(
             $word = $_GET['word'] ? $_GET['word'] : '战舰世界',
             $offset = 0,
@@ -191,7 +204,9 @@ if ($_GET['ajax']) {
                         );
                     }
 //        print_r($info);exit;
-                    $song = $info['result']['songs'][$play];
+                    //使数据格式和歌单统一
+                    $song = $info['result']['songs'];
+
 
                 }
                 break;
@@ -245,7 +260,7 @@ if ($_GET['ajax']) {
             $m->outPut(0, '搜索失败');
         }
         if ($try % 3 == 0) {
-            if(!$song){
+            if (!$song) {
                 $m->outPut(0, '搜索失败');
             }
             $play = rand(0, count($song));
@@ -255,38 +270,58 @@ if ($_GET['ajax']) {
         $url = $m->music_get($id);
         $url = $url['data'][0]['url'];
         if (!$url) {
+            sleep(1);//以免过快被封
             getMusic($try);
         }
         $ex = [
             'cors' => $cacheToServer,
-            'name' => $song['name'] ? $song['name'] : $song[$play]['name'],
+            'name' => $song[$play]['name'],
             'al'   => [
-                'name' => $song['al']['name'],
-                'pic'  => $song['al']['picUrl']
+                'name' => $song[$play]['al']['name'],
+                'pic'  => $song[$play]['al']['picUrl']
             ]
 
         ];
 
         //@todo
         if ($cacheToServer) {
-            $qiniuUrl = 'https://www.lanfd.top/flashchat/qiniu.php?';
-            $param    = [
-                'ajax' => 1,
-                'url'  => $url,
-                'key'  => isset($song['name']) ? $song['name'] : '' . $song['id'],
-            ];
-            $qiniuUrl = $qiniuUrl . http_build_query($param);
-            $res      = json_decode(file_get_contents($qiniuUrl), true);
+
+            //储存到七牛
+//            $qiniuUrl = 'https://www.lanfd.top/flashchat/qiniu.php?';
+//            $param    = [
+//                'ajax' => 1,
+//                'url'  => $url,
+//                'key'  => isset($song['name']) ? $song['name'] : '' . $song['id'],
+//            ];
+//
+//            $qiniuUrl = $qiniuUrl . http_build_query($param);
+//            $res      = json_decode(file_get_contents($qiniuUrl), true);
+
+
+            //储存到本地
+            if (!is_dir($m->storagePath)) {
+                mkdir($m->storagePath);
+            }
+            if (!$m->canWrite($m->storagePath)) {
+                exit('目录不可写，请修改目录权限');
+            }
+            $n        = $id . '_' . $song[$play]['name'] . '.mp3';
+            $songName = $m->storagePath . '/' . $n;
+            if (!file_exists($songName)) {
+                file_put_contents($songName, file_get_contents($url));
+            }
+            $res = $songName;
+            //本地
         } else {
-            $res = ['r' => 1, 'data' => $url];
+            $res = $url;
         }
 
-        if ($res['r']) {
-            if (isset($songList)) {
-                $ex['song_list'] = $songList;
-            }
-            $m->outPut(1, $res['data'], $ex);
+
+        if (isset($songList)) {
+            $ex['song_list'] = $songList;
         }
+        $m->outPut(1, $res, $ex);
+
     }
 
     getMusic();
@@ -337,7 +372,7 @@ if ($_GET['ajax']) {
             本程序已开源于 <a href="https://github.com/LanFD/music_163" target="_blank">https://github.com/LanFD/music_163</a>
         </div>
     </div>
-    <div class="form-group center-block" style="margin-top: 4vh">
+    <div class="form-group center-block" style="margin-top: 4vh;">
         <div class="input-group">
             <div class="input-group-addon">搜索模式：</div>
             <select id="type" name="s" class="form-control" style="z-index:  0">
@@ -347,7 +382,7 @@ if ($_GET['ajax']) {
             <div class="input-group-addon">关键字：</div>
             <input style="z-index: 0" class="form-control" type="text" id="text" value="" placeholder="写入关键字">
         </div>
-        <div style="margin-top: 1vh; width:  100%; text-align: center">
+        <div style="margin-top: 1vh; width:  100%; text-align: center; position: relative">
             <form class="form-inline">
                 <div style="float: left" class="form-group">
                     <button id="playButton" onclick="playOrPause()" type="button" class="btn btn-default">
@@ -382,7 +417,7 @@ if ($_GET['ajax']) {
                 </div>
 
 
-                <button style="float: right" onclick="down()" type="button" class="btn btn-default">
+                <button style="position: absolute;right: 0;top:0" onclick="down()" type="button" class="btn btn-default">
                     <span class=" glyphicon glyphicon-arrow-down"></span>
                 </button>
 
@@ -920,7 +955,11 @@ if ($_GET['ajax']) {
     function randStr()
     {
         let arr = [
-            '燃曲'
+            'touhou',
+            '燃曲',
+            '高达',
+            '古风',
+            'acg'
 
         ];
         let l   = arr.length;
