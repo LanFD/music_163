@@ -5,7 +5,7 @@ class Music_163
     public $storagePath = 'mp3';//本地存歌文件夹名
 
 
-    function httpPost($url = '', array $param)
+    function httpPost($url = '',  $param)
     {
         $url    = "http://music.163.com/" . $url;
         $values = [];
@@ -182,6 +182,7 @@ if ($_GET['ajax']) {
             $limit = 30,
             $type
         );
+        
 
 
         switch ($type) {
@@ -236,6 +237,7 @@ if ($_GET['ajax']) {
                             if ($songList['code'] == 200) {
                                 $play = rand(0, $songList['result']['trackCount']);
                                 $song = $songList['result']['tracks'];
+//                                print_r($song);exit;
                             }
                         }
 
@@ -244,9 +246,9 @@ if ($_GET['ajax']) {
                 break;
         }
     }
+//    print_r($song);exit;
 
-
-    function getMusic($try = 1)
+    function getMusic($try = 0)
     {
         global $m;
         global $cacheToServer;
@@ -255,13 +257,15 @@ if ($_GET['ajax']) {
         global $play;
         global $id;
         $try++;
+        
         $id = $id ? $id : $song[$play]['id'];
+
         if ($try > 9) {
-            $m->outPut(0, '搜索失败');
+            $m->outPut(0, '搜索失败:262');
         }
         if ($try % 3 == 0) {
             if (!$song) {
-                $m->outPut(0, '搜索失败');
+                $m->outPut(0, '搜索失败:266');
             }
             $play = rand(0, count($song));
             $id   = 0;
@@ -439,6 +443,8 @@ if ($_GET['ajax']) {
     downloading ~~please wait~~~
 </div>
 
+<div id = 'progressing'></div>
+
 </body>
 </html>
 
@@ -451,6 +457,7 @@ if ($_GET['ajax']) {
             this.confirmStop = 1;//停止播放
             this.ctldo       = 0;      //自动播放控制
             this.netError    = 0; //请求失败
+            this.firstPlayKey = 0;//判断是否初次播放
 
         }
 
@@ -479,9 +486,25 @@ if ($_GET['ajax']) {
             // 一旦获取完成，对音频进行进一步操作，比如解码
             request.onload  = () =>
             {
-                hideShowMask(1);
                 this.file = request.response;
-                this.loadAudioFile();
+
+                if(this.firstPlayKey){
+                    this.loadAudioFile();
+                    hideShowMask(1);
+                }else {
+                    hideShowMask('', (m)=>{
+                        m.html('点击播放');
+                        $('body').on('click', ()=>{
+                            this.loadAudioFile();
+                            this.firstPlayKey = 1;
+                            m.hide();
+                            setTimeout(()=>{
+                                $('body').unbind("click");
+                                m.html('downloading ~~please wait~~~');
+                            }, 2000)
+                        })
+                    });
+                }
             };
             request.onerror = () =>
             {
@@ -764,6 +787,7 @@ if ($_GET['ajax']) {
     let audioC    = audioCvs.ini();
     let audio     = $("#audio")[0];
     let canCross  = 1;//默认可跨域
+    let firstPlayKey = 0;//初次播放标识
     audio.loop    = false;
     audio.onended = () =>
     {
@@ -790,10 +814,14 @@ if ($_GET['ajax']) {
     });
 
 
-    function hideShowMask(h = 0)
+    function hideShowMask(h = 0, cb = '')
     {
         let m = $('#mask');
-        h ? m.hide(1000) : m.show(0);
+        if(!cb){
+            h ? m.hide(1000) : m.show(200);
+        }else {
+            cb(m);
+        }
     }
 
     function log(x)
@@ -907,13 +935,40 @@ if ($_GET['ajax']) {
                                           audioC.loadSound(x.data);
                                           audio.src = x.data;
                                       } else {
-                                          hideShowMask(1);
                                           canCross  = 0;
                                           audio.src = x.data;
-                                          audio.play(0);
+                                          if(firstPlayKey){
+                                              hideShowMask(1);
+                                              audio.play(0);
+                                          }else {
+                                              hideShowMask('', (m)=>{
+                                                  m.html('点击播放');
+                                                  $('body').on('click', ()=>{
+                                                      audio.play(0);
+                                                      firstPlayKey = 1;
+                                                      m.hide();
+                                                      setTimeout(()=>{
+                                                          $('body').unbind("click");
+                                                          m.html('downloading ~~please wait~~~');
+                                                      }, 2000)
+                                                  })
+                                              });
+                                          }
+
+
+
+
+
+                                          //loadstart，durationchange，loadeddata，progress，canplay，canplaythrough。
+                                          // audio.play(0);
+                                          // audio.ontimeupdate = () => {
+                                          //     if(audio.buffered.length === 0){
+                                          //         log(audio.buffered.end(0));
+                                          //     }
+                                          // }
                                       }
                                       if (urlAdd) {
-                                          log(sl);
+                                          
                                           x.ex                  = sl.tracks[r - 1];
                                           x.ex.song_list        = {};
                                           x.ex.song_list.result = sl;
