@@ -7,4 +7,4 @@ php获取网易云音乐资源<br />
  http://www.lanfd.top/flashchat/musicGet_dev.php<br />
 
 加密部分参考了知乎https://www.zhihu.com/question/36081767<br />
-api参数由观察得到<br />
+api参数由实际观察得到<br />
