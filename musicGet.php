@@ -161,7 +161,7 @@ type=1009      主播电台
 }
 
 //$_GET['ajax']= 1;
-if ($_GET['ajax']) {
+if ($_GET['ajax'] ?? 0) {
     $cacheToServer = $_GET['doCache'] ? 1 : 0; //是否存储到自己的空间以解决跨域
 
     $m = new Music_163();
@@ -277,7 +277,7 @@ if ($_GET['ajax']) {
             sleep(1);//以免过快被封
             getMusic($try);
         }
-        $ex = [
+        $ex = @[
             'cors' => $cacheToServer,
             'name' => $song[$play]['name'],
             'al'   => [
