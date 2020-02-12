@@ -1,5 +1,4 @@
 <?php
-
 class Music_163
 {
     public $storagePath = 'mp3';//本地存歌文件夹名
@@ -276,7 +275,9 @@ if ($_GET['ajax'] ?? 0) {
         if (!$url) {
             sleep(1);//以免过快被封
             getMusic($try);
+
         }
+
         $ex = @[
             'cors' => $cacheToServer,
             'name' => $song[$play]['name'],
@@ -397,17 +398,14 @@ if ($_GET['ajax'] ?? 0) {
                     <button onclick="getAnother()" type="button" class="btn btn-default">
                         <span class="glyphicon glyphicon-step-forward"></span>
                     </button>
-
-
-                    <label class="radio-inline song_list">
-                        <input checked type="radio" name="play" value="0"> 继续播放歌单
-                    </label>
-                    <label class="radio-inline song_list">
-                        <input type="radio" name="play" value="1"> 搜索新歌单
-                    </label>
-
-
                 </div>
+                <div class="form-group" style="float: left; margin-left: 2%">
+                    <button onclick="newList()" type="button" class="btn btn-default song_list" style="font-size: small;padding: 4px">
+                        新歌单
+                    </button>
+                </div>
+
+
 
 
                 <div class="song_list" style="margin: 0 auto; display: none;">
@@ -800,6 +798,7 @@ if ($_GET['ajax'] ?? 0) {
     let type   = 1000;
     let sl;
     let urlAdd = '';
+    let VarNewList = 0;//新歌单
 
     $("#type").change(function ()
     {
@@ -898,6 +897,12 @@ if ($_GET['ajax'] ?? 0) {
     //         $('#mobile').hide(2000);
     //     }
     // }
+
+    function newList() {
+        VarNewList = 1;
+        getAnother(0, 1000);
+    }
+
     function getAnother(ini)
     {
         hideShowMask(0);
@@ -907,10 +912,10 @@ if ($_GET['ajax'] ?? 0) {
             w = ini;
             $('#text').val(w);
         }
-        type = $('#type').val();
+
         if (type == 1000) {
-            let p = $("input[name='play']:checked").val();
-            if (p == 0) {
+
+            if (VarNewList == 0) {
                 //继续播放歌单
                 if (sl) {
                     let l  = sl.trackCount;
@@ -921,6 +926,7 @@ if ($_GET['ajax'] ?? 0) {
                     }
                 }
             }
+            VarNewList = 0;
         }
         if (w) {
             $.ajax({
