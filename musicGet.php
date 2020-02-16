@@ -395,12 +395,12 @@ if ($_GET['ajax'] ?? 0) {
                     </button>
                 </div>
                 <div class="form-group" style="float: left; margin-left: 2%">
-                    <button onclick="getAnother()" type="button" class="btn btn-default">
+                    <button onclick="nextSong()" type="button" class="btn btn-default">
                         <span class="glyphicon glyphicon-step-forward"></span>
                     </button>
                 </div>
-                <div class="form-group" style="float: left; margin-left: 2%">
-                    <button onclick="newList()" type="button" class="btn btn-default song_list" style="font-size: small;padding: 4px">
+                <div class="form-group song_list" style="float: left; margin-left: 2%">
+                    <button onclick="newList()" type="button" class="btn btn-default" style="font-size: small;padding: 4px">
                         新歌单
                     </button>
                 </div>
@@ -900,7 +900,14 @@ if ($_GET['ajax'] ?? 0) {
 
     function newList() {
         VarNewList = 1;
-        getAnother(0, 1000);
+        type = 1000;
+        getAnother(0);
+    }
+
+    function nextSong() {
+        type = $('#type').val();
+        VarNewList = 0;
+        getAnother(0);
     }
 
     function getAnother(ini)
